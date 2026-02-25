@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { getStats, getApplications, getFunnel, getWeekly, getActions, getFilters } from "./api/client";
+import { getApplications, syncEmails } from "./api/client";
 import { T, GC } from "./components/ui";
 import StatsCards from "./components/StatsCards";
 import SankeyFunnel from "./components/SankeyFunnel";
@@ -29,12 +29,19 @@ export default function App() {
   const [error, setError] = useState(null);
   const [lastSync, setLastSync] = useState(null);
 
+  // Sync state
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+  const [showSyncPanel, setShowSyncPanel] = useState(false);
+  const [syncAfter, setSyncAfter] = useState("");
+  const [syncBefore, setSyncBefore] = useState("");
+  const [syncMax, setSyncMax] = useState(100);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const raw = await getApplications();
-      // Normalize API field names to match frontend expectations
       const apps = raw.map((r) => ({
         ...r,
         date: r.first_seen?.slice(0, 10) || "",
@@ -55,6 +62,34 @@ export default function App() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    setError(null);
+    try {
+      const params = { maxResults: syncMax };
+      if (syncAfter) params.after = syncAfter;
+      if (syncBefore) params.before = syncBefore;
+      const result = await syncEmails(params);
+      setSyncResult(result);
+      setShowSyncPanel(false);
+      // Refresh dashboard data after sync
+      await fetchData();
+    } catch (err) {
+      console.error("Sync error:", err);
+      setError(`Sync failed: ${err.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  // Auto-hide sync result after 8 seconds
+  useEffect(() => {
+    if (!syncResult) return;
+    const t = setTimeout(() => setSyncResult(null), 8000);
+    return () => clearTimeout(t);
+  }, [syncResult]);
 
   // Client-side filtering
   const filtered = useMemo(() => {
@@ -110,18 +145,116 @@ export default function App() {
             alt="Logo"
             style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", width: 150, height: 95, objectFit: "contain" }}
           />
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", position: "relative" }}>
             {lastSync && <span style={{ fontSize: 12, color: "#a8a29e" }}>Synced {lastSync}</span>}
-            <button
-              onClick={fetchData}
-              style={{ background: T.grad, color: "#fff", border: "none", borderRadius: 12, padding: "10px 20px", fontSize: 13, cursor: "pointer", fontWeight: 600, boxShadow: "0 4px 16px rgba(217,119,6,0.3)", transition: "transform 0.15s" }}
-              onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
-              onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
-            >
-              Sync Now
-            </button>
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setShowSyncPanel(!showSyncPanel)}
+                disabled={syncing}
+                style={{
+                  background: syncing ? "#d6d3d1" : T.grad,
+                  color: "#fff", border: "none", borderRadius: 12, padding: "10px 20px",
+                  fontSize: 13, cursor: syncing ? "not-allowed" : "pointer", fontWeight: 600,
+                  boxShadow: syncing ? "none" : "0 4px 16px rgba(217,119,6,0.3)",
+                  transition: "all 0.15s", display: "flex", alignItems: "center", gap: 8,
+                }}
+                onMouseOver={(e) => !syncing && (e.currentTarget.style.transform = "scale(1.03)")}
+                onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
+              >
+                {syncing && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" style={{ animation: "spin 1s linear infinite" }}>
+                    <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="3" fill="none" strokeDasharray="31.4 31.4" strokeLinecap="round" />
+                  </svg>
+                )}
+                {syncing ? "Syncing..." : "Sync Now"}
+              </button>
+
+              {/* Sync Settings Panel */}
+              {showSyncPanel && !syncing && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 100,
+                  background: "rgba(255,255,255,0.95)", backdropFilter: "blur(16px)",
+                  borderRadius: 16, padding: 20, minWidth: 300,
+                  border: "1.5px solid rgba(214,211,209,0.5)",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+                }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#1c1917", marginBottom: 14 }}>
+                    Sync Settings
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <label style={{ fontSize: 12, color: "#78716c", fontWeight: 600 }}>
+                      After
+                      <input
+                        type="date" value={syncAfter}
+                        onChange={(e) => setSyncAfter(e.target.value)}
+                        style={{ ...inp, width: "100%", marginTop: 4, display: "block" }}
+                      />
+                    </label>
+
+                    <label style={{ fontSize: 12, color: "#78716c", fontWeight: 600 }}>
+                      Before
+                      <input
+                        type="date" value={syncBefore}
+                        onChange={(e) => setSyncBefore(e.target.value)}
+                        style={{ ...inp, width: "100%", marginTop: 4, display: "block" }}
+                      />
+                    </label>
+
+                    <label style={{ fontSize: 12, color: "#78716c", fontWeight: 600 }}>
+                      Max Emails
+                      <input
+                        type="number" value={syncMax} min={1} max={500}
+                        onChange={(e) => setSyncMax(Number(e.target.value))}
+                        style={{ ...inp, width: "100%", marginTop: 4, display: "block" }}
+                      />
+                    </label>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                    <button
+                      onClick={handleSync}
+                      style={{
+                        flex: 1, background: T.grad, color: "#fff", border: "none",
+                        borderRadius: 10, padding: "10px 0", fontSize: 13,
+                        fontWeight: 600, cursor: "pointer",
+                      }}
+                    >
+                      Start Sync
+                    </button>
+                    <button
+                      onClick={() => setShowSyncPanel(false)}
+                      style={{
+                        background: "rgba(214,211,209,0.4)", color: "#78716c",
+                        border: "none", borderRadius: 10, padding: "10px 16px",
+                        fontSize: 13, cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Sync Result Banner */}
+        {syncResult && (
+          <GC style={{ padding: "12px 20px", marginBottom: 16, border: "1.5px solid rgba(217,119,6,0.3)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 13, color: "#44403c" }}>
+              <span style={{ fontWeight: 700, color: T.primary }}>Sync complete</span>
+              {" — "}
+              {syncResult.new_emails} new fetched, {syncResult.analyzed} analyzed, {syncResult.skipped} skipped
+            </span>
+            <button
+              onClick={() => setSyncResult(null)}
+              style={{ background: "none", border: "none", color: "#a8a29e", cursor: "pointer", fontSize: 16, padding: "0 4px" }}
+            >
+              ×
+            </button>
+          </GC>
+        )}
 
         {/* Error Banner */}
         {error && (
@@ -199,6 +332,9 @@ export default function App() {
           onStatusFilter={setSf}
         />
       </div>
+
+      {/* Spinner animation */}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

@@ -20,7 +20,20 @@ export const getWeekly = () => request("/api/weekly");
 export const getActions = () => request("/api/actions");
 export const getFilters = () => request("/api/filters");
 
-// AI Insight - chat with Ollama via backend
+// Sync — fetch Gmail + analyze with Ollama
+export const syncEmails = ({ after, before, maxResults } = {}) => {
+  const body = {};
+  if (after) body.after = after;
+  if (before) body.before = before;
+  if (maxResults) body.max_results = maxResults;
+
+  return request("/api/sync", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+};
+
+// AI Insight — chat with Ollama via backend
 export const chatAI = (message) =>
   request("/api/chat", {
     method: "POST",

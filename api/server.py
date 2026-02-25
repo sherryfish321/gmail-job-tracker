@@ -6,7 +6,7 @@ FastAPI backend for Gmail JobTracker dashboard.
 from __future__ import annotations
 
 import httpx
-from fastapi import FastAPI, Query
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -42,6 +42,30 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ============================================================
+# Helper: build Gmail query from date filters
+# ============================================================
+def build_query(after: str = None, before: str = None) -> str:
+    """
+    Build Gmail search query with optional date filters.
+    Date format from frontend: YYYY-MM-DD → converted to YYYY/MM/DD for Gmail.
+    """
+    base_keywords = (
+        "subject:(application OR applied OR interview OR offer OR reject OR thank)"
+    )
+
+    if not after and not before:
+        return GMAIL_DEFAULT_QUERY
+
+    parts = [base_keywords]
+    if after:
+        parts.append(f"after:{after.replace('-', '/')}")
+    if before:
+        parts.append(f"before:{before.replace('-', '/')}")
+
+    return " ".join(parts)
 
 
 # ============================================================
@@ -150,26 +174,38 @@ def api_chat(req: ChatRequest):
 # ============================================================
 # Sync & Analyze endpoints
 # ============================================================
+class SyncRequest(BaseModel):
+    after: str = None  # YYYY-MM-DD
+    before: str = None  # YYYY-MM-DD
+    max_results: int = GMAIL_DEFAULT_MAX_RESULTS
+
+
 @app.post("/api/sync")
-def api_sync(
-    query: str = Query(
-        default=GMAIL_DEFAULT_QUERY,
-        description="Gmail search query",
-    ),
-    max_results: int = Query(
-        default=GMAIL_DEFAULT_MAX_RESULTS,
-        description="Max emails to fetch",
-    ),
-):
+def api_sync(req: SyncRequest):
     """Fetch new emails from Gmail and analyze them."""
-    new_count, skip_count = fetch_emails(query=query, max_results=max_results)
+    query = build_query(after=req.after, before=req.before)
+
+    print(f"\n{'=' * 60}")
+    print("  Sync triggered from UI")
+    print(f"  Query:  {query}")
+    print(f"  Max:    {req.max_results}")
+    print(f"{'=' * 60}\n")
+
+    # Step 1: Fetch
+    new_count, skip_count = fetch_emails(query=query, max_results=req.max_results)
+
+    # Step 2: Analyze new ones
     unanalyzed = len(get_unanalyzed_emails())
+    analyzed = 0
     if unanalyzed > 0:
         analyze_all()
+        analyzed = unanalyzed
+
     return {
         "new_emails": new_count,
         "skipped": skip_count,
-        "analyzed": unanalyzed,
+        "analyzed": analyzed,
+        "query": query,
     }
 
 
