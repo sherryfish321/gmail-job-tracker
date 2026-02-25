@@ -8,7 +8,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime
 
-DB_PATH = "tracker.db"
+from config import DB_PATH
 
 
 # ============================================================
@@ -17,7 +17,7 @@ DB_PATH = "tracker.db"
 def get_conn(db_path=DB_PATH):
     """Get a SQLite connection with row_factory for dict-like access."""
     conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row  # rows behave like dicts
+    conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
@@ -116,8 +116,6 @@ def insert_email(email: dict, db_path=DB_PATH) -> bool:
     """
     Insert a raw email into the emails table.
     Returns True if inserted, False if already exists (skip duplicate).
-
-    Expected keys: gmail_id, date, sender, recipient, subject, snippet, body, labels
     """
     conn = get_conn(db_path)
     try:
@@ -139,7 +137,7 @@ def insert_email(email: dict, db_path=DB_PATH) -> bool:
         conn.commit()
         return True
     except sqlite3.IntegrityError:
-        return False  # duplicate gmail_id
+        return False
     finally:
         conn.close()
 
@@ -171,9 +169,6 @@ def insert_analysis(analysis: dict, db_path=DB_PATH) -> bool:
     """
     Insert an LLM analysis result.
     Returns True if inserted, False if already exists.
-
-    Expected keys: gmail_id, email_type, company, role, status,
-                   action_item, deadline, summary, confidence, model_used
     """
     conn = get_conn(db_path)
     try:
@@ -220,13 +215,10 @@ def upsert_application(app: dict, gmail_id: str, db_path=DB_PATH) -> int:
     """
     Insert or update an application record, and link the email.
     Returns the application id.
-
-    Expected keys: company, role, status, action_item, deadline, notes
     """
     conn = get_conn(db_path)
     c = conn.cursor()
 
-    # Check if this company+role already exists
     existing = c.execute(
         "SELECT id, current_status FROM applications WHERE company = ? AND role = ?",
         (app["company"], app["role"]),
@@ -239,7 +231,6 @@ def upsert_application(app: dict, gmail_id: str, db_path=DB_PATH) -> int:
 
     if existing:
         app_id = existing["id"]
-        # Update status if the new email is more recent
         c.execute(
             """UPDATE applications
                SET current_status = ?,
@@ -275,14 +266,13 @@ def upsert_application(app: dict, gmail_id: str, db_path=DB_PATH) -> int:
         )
         app_id = c.lastrowid
 
-    # Link email to application
     try:
         c.execute(
             "INSERT INTO application_emails (application_id, gmail_id) VALUES (?, ?)",
             (app_id, gmail_id),
         )
     except sqlite3.IntegrityError:
-        pass  # already linked
+        pass
 
     conn.commit()
     conn.close()

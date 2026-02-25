@@ -10,6 +10,15 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from config import (
+    CORS_ORIGINS,
+    GMAIL_DEFAULT_MAX_RESULTS,
+    GMAIL_DEFAULT_QUERY,
+    LLM_NUM_PREDICT_CHAT,
+    LLM_TIMEOUT_CHAT,
+    OLLAMA_CHAT_URL,
+    OLLAMA_MODEL,
+)
 from db.database import (
     get_all_applications,
     get_application_emails,
@@ -27,19 +36,12 @@ from llm.analyzer import analyze_all
 init_db()
 app = FastAPI(title="Gmail JobTracker API", version="1.0.0")
 
-# Allow React dev server (localhost:5173) to call this API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ============================================================
-# Ollama config
-# ============================================================
-OLLAMA_URL = "http://localhost:11434/api/chat"
-OLLAMA_MODEL = "qwen3:8b"
 
 
 # ============================================================
@@ -91,11 +93,9 @@ class ChatRequest(BaseModel):
 @app.post("/api/chat")
 def api_chat(req: ChatRequest):
     """Chat with Ollama using application data as context."""
-    # Build context from current application stats
     apps = get_all_applications()
     stats = get_stats()
 
-    # Summarize for context
     status_counts = {}
     companies = set()
     roles = set()
@@ -123,7 +123,7 @@ def api_chat(req: ChatRequest):
 
     try:
         resp = httpx.post(
-            OLLAMA_URL,
+            OLLAMA_CHAT_URL,
             json={
                 "model": OLLAMA_MODEL,
                 "messages": [
@@ -131,9 +131,9 @@ def api_chat(req: ChatRequest):
                     {"role": "user", "content": req.message},
                 ],
                 "stream": False,
-                "options": {"num_predict": 300},
+                "options": {"num_predict": LLM_NUM_PREDICT_CHAT},
             },
-            timeout=180.0,
+            timeout=LLM_TIMEOUT_CHAT,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -153,15 +153,16 @@ def api_chat(req: ChatRequest):
 @app.post("/api/sync")
 def api_sync(
     query: str = Query(
-        default="subject:(application OR applied OR interview OR offer OR reject OR thank) after:2026/02/01",
+        default=GMAIL_DEFAULT_QUERY,
         description="Gmail search query",
     ),
-    max_results: int = Query(default=100, description="Max emails to fetch"),
+    max_results: int = Query(
+        default=GMAIL_DEFAULT_MAX_RESULTS,
+        description="Max emails to fetch",
+    ),
 ):
     """Fetch new emails from Gmail and analyze them."""
-    # Step 1: Fetch
     new_count, skip_count = fetch_emails(query=query, max_results=max_results)
-    # Step 2: Analyze new ones
     unanalyzed = len(get_unanalyzed_emails())
     if unanalyzed > 0:
         analyze_all()

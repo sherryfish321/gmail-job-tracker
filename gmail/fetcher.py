@@ -6,6 +6,7 @@ Fetch emails from Gmail API and store them in the database.
 import base64
 from datetime import datetime
 
+from config import GMAIL_BODY_MAX_LENGTH, GMAIL_DEFAULT_MAX_RESULTS, GMAIL_DEFAULT_QUERY
 from db.database import get_conn, insert_email
 from gmail.auth import get_service
 
@@ -36,7 +37,7 @@ def get_header(headers, name):
     return ""
 
 
-def fetch_emails(query="", max_results=100):
+def fetch_emails(query=GMAIL_DEFAULT_QUERY, max_results=GMAIL_DEFAULT_MAX_RESULTS):
     """
     Fetch emails from Gmail and insert into database.
     Returns (new_count, skip_count).
@@ -70,7 +71,6 @@ def fetch_emails(query="", max_results=100):
             break
 
         for msg in msgs:
-            # Skip if already in DB
             conn = get_conn()
             exists = conn.execute(
                 "SELECT 1 FROM emails WHERE gmail_id = ?", (msg["id"],)
@@ -81,7 +81,6 @@ def fetch_emails(query="", max_results=100):
                 skip_count += 1
                 continue
 
-            # Fetch full message
             detail = (
                 service.users()
                 .messages()
@@ -91,7 +90,7 @@ def fetch_emails(query="", max_results=100):
 
             headers = detail.get("payload", {}).get("headers", [])
             body = get_body(detail.get("payload", {}))
-            body = body[:5000] if body else ""  # truncate to avoid huge DB
+            body = body[:GMAIL_BODY_MAX_LENGTH] if body else ""
 
             ts = int(detail.get("internalDate", 0)) / 1000
             date_str = (
@@ -129,8 +128,4 @@ def fetch_emails(query="", max_results=100):
 
 
 if __name__ == "__main__":
-    # Test: fetch recent job-related emails
-    fetch_emails(
-        query="subject:(application OR applied OR interview OR offer OR reject OR thank) after:2026/02/01",
-        max_results=200,
-    )
+    fetch_emails()
