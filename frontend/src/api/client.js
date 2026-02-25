@@ -36,6 +36,10 @@ export const syncEmails = ({ after, before, maxResults } = {}) => {
 // Application emails (for expanded row detail)
 export const getApplicationEmails = (appId) => request(`/api/applications/${appId}/emails`);
 
+// Toggle action done
+export const toggleActionDone = (appId) =>
+  request(`/api/applications/${appId}/action-done`, { method: "PATCH" });
+
 // AI Insight — chat with Ollama via backend
 export const chatAI = (message) =>
   request("/api/chat", {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { getApplications, syncEmails } from "./api/client";
+import { getApplications, syncEmails, toggleActionDone } from "./api/client";
 import { T, GC } from "./components/ui";
 import StatsCards from "./components/StatsCards";
 import SankeyFunnel from "./components/SankeyFunnel";
@@ -47,6 +47,7 @@ export default function App() {
         date: r.first_seen?.slice(0, 10) || "",
         status: r.current_status || "applied",
         action: r.action_item || null,
+        action_done: r.action_done || 0,
         summary: r.notes || "",
       }));
       setApplications(apps);
@@ -90,6 +91,15 @@ export default function App() {
     const t = setTimeout(() => setSyncResult(null), 8000);
     return () => clearTimeout(t);
   }, [syncResult]);
+
+  const handleToggleAction = async (appId) => {
+    try {
+      await toggleActionDone(appId);
+      await fetchData();
+    } catch (err) {
+      console.error("Toggle error:", err);
+    }
+  };
 
   // Client-side filtering
   const filtered = useMemo(() => {
@@ -320,7 +330,7 @@ export default function App() {
 
         {/* Action Items + By Role */}
         <div className="two-col-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 22 }}>
-          <ActionItems data={filtered} />
+          <ActionItems data={filtered} onToggle={handleToggleAction} />
           <ByRole data={filtered} />
         </div>
 

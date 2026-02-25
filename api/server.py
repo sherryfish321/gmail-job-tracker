@@ -29,6 +29,7 @@ from db.database import (
     get_unanalyzed_emails,
     get_weekly_trend,
     init_db,
+    toggle_action_done,
 )
 from gmail.fetcher import fetch_emails
 from llm.analyzer import analyze_all
@@ -191,3 +192,12 @@ def api_analyze():
         return {"message": "No unanalyzed emails", "analyzed": 0}
     analyze_all()
     return {"analyzed": unanalyzed}
+
+
+@app.patch("/api/applications/{app_id}/action-done")
+def api_toggle_action_done(app_id: int):
+    """Toggle action_done status for an application."""
+    result = toggle_action_done(app_id)
+    if not result:
+        return {"error": "Application not found"}, 404
+    return result

@@ -105,8 +105,53 @@ def init_db(db_path=DB_PATH):
     """)
 
     conn.commit()
+    # Migration: add action_done column if not exists
+    try:
+        conn.execute(
+            "ALTER TABLE applications ADD COLUMN action_done INTEGER NOT NULL DEFAULT 0"
+        )
+        conn.commit()
+        print("  Migration: added action_done column")
+    except Exception:
+        pass  # column already exists
+
+    # Migration: recreate dashboard view to include action_done
+    conn.executescript("""
+        DROP VIEW IF EXISTS dashboard;
+        CREATE VIEW dashboard AS
+        SELECT
+            app.id,
+            app.company,
+            app.role,
+            app.current_status,
+            app.first_seen,
+            app.last_updated,
+            app.action_item,
+            app.deadline,
+            app.notes,
+            app.action_done,
+            COUNT(ae.gmail_id) AS email_count
+        FROM applications app
+        LEFT JOIN application_emails ae ON app.id = ae.application_id
+        GROUP BY app.id;
+    """)
     conn.close()
     print(f"Database initialized at {db_path}")
+
+
+def toggle_action_done(app_id: int, db_path=DB_PATH) -> dict | None:
+    """Toggle action_done for an application. Returns updated app or None."""
+    conn = get_conn(db_path)
+    conn.execute(
+        "UPDATE applications SET action_done = 1 - action_done WHERE id = ?",
+        (app_id,),
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT id, action_done FROM applications WHERE id = ?", (app_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 # ============================================================
