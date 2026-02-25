@@ -3,9 +3,11 @@ main.py
 Gmail JobTracker — unified entry point.
 
 Usage:
-    python main.py              # full pipeline: fetch → analyze → serve
-    python main.py --serve      # skip fetch/analyze, just start API server
-    python main.py --sync       # fetch + analyze only, no server
+    python main.py                          # full pipeline: fetch → analyze → serve
+    python main.py --serve                  # skip fetch/analyze, just start API server
+    python main.py --sync                   # fetch + analyze only, no server
+    python main.py --sync --after 2026/02/01 --before 2026/02/28
+    python main.py --sync --after 2026/02/15 --max 50
 """
 
 from __future__ import annotations
@@ -14,10 +16,40 @@ import argparse
 import subprocess
 import sys
 
-from config import API_HOST, API_PORT
+from config import (
+    API_HOST,
+    API_PORT,
+    GMAIL_DEFAULT_MAX_RESULTS,
+    GMAIL_DEFAULT_QUERY,
+)
 
 
-def run_sync():
+def build_query(after: str = None, before: str = None) -> str:
+    """
+    Build Gmail search query with optional date filters.
+
+    If neither after nor before is provided, returns the default query from config.
+    If date filters are given, constructs a new query with them.
+
+    Date format: YYYY/MM/DD (Gmail API format)
+    """
+    base_keywords = (
+        "subject:(application OR applied OR interview OR offer OR reject OR thank)"
+    )
+
+    if not after and not before:
+        return GMAIL_DEFAULT_QUERY
+
+    parts = [base_keywords]
+    if after:
+        parts.append(f"after:{after}")
+    if before:
+        parts.append(f"before:{before}")
+
+    return " ".join(parts)
+
+
+def run_sync(query: str, max_results: int):
     """Fetch new emails from Gmail and analyze with Ollama."""
     from db.database import get_unanalyzed_emails, init_db
     from gmail.fetcher import fetch_emails
@@ -32,7 +64,9 @@ def run_sync():
 
     # Step 1: Fetch emails
     print("\n[1/2] Fetching emails from Gmail...")
-    new_count, skip_count = fetch_emails()
+    print(f"       Query: {query}")
+    print(f"       Max:   {max_results}")
+    new_count, skip_count = fetch_emails(query=query, max_results=max_results)
     print(f"       → {new_count} new, {skip_count} skipped")
 
     # Step 2: Analyze
@@ -69,7 +103,19 @@ def run_server():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Gmail JobTracker")
+    parser = argparse.ArgumentParser(
+        description="Gmail JobTracker",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python main.py                                   # full pipeline\n"
+            "  python main.py --serve                           # API server only\n"
+            "  python main.py --sync                            # fetch + analyze only\n"
+            "  python main.py --sync --after 2026/02/01         # from Feb 1 onward\n"
+            "  python main.py --sync --after 2026/02/01 --before 2026/02/28\n"
+            "  python main.py --sync --after 2026/02/15 --max 50\n"
+        ),
+    )
     parser.add_argument(
         "--serve",
         action="store_true",
@@ -80,15 +126,31 @@ def main():
         action="store_true",
         help="Fetch + analyze only (no server)",
     )
+    parser.add_argument(
+        "--after",
+        help="Fetch emails after this date (YYYY/MM/DD)",
+    )
+    parser.add_argument(
+        "--before",
+        help="Fetch emails before this date (YYYY/MM/DD)",
+    )
+    parser.add_argument(
+        "--max",
+        type=int,
+        default=GMAIL_DEFAULT_MAX_RESULTS,
+        help=f"Max emails to fetch (default: {GMAIL_DEFAULT_MAX_RESULTS})",
+    )
     args = parser.parse_args()
+
+    query = build_query(after=args.after, before=args.before)
 
     if args.serve:
         run_server()
     elif args.sync:
-        run_sync()
+        run_sync(query=query, max_results=args.max)
     else:
         # Full pipeline: sync then serve
-        run_sync()
+        run_sync(query=query, max_results=args.max)
         print()
         run_server()
 
