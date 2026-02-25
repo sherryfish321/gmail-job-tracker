@@ -33,6 +33,9 @@ export const syncEmails = ({ after, before, maxResults } = {}) => {
   });
 };
 
+// Application emails (for expanded row detail)
+export const getApplicationEmails = (appId) => request(`/api/applications/${appId}/emails`);
+
 // AI Insight — chat with Ollama via backend
 export const chatAI = (message) =>
   request("/api/chat", {

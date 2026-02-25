@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GC, T, statusConfig, STATUS_ORDER } from "./ui";
+import { getApplicationEmails } from "../api/client";
 
 /* ===== Filter Button ===== */
 function FBtn({ label, active, color, onClick }) {
@@ -26,6 +27,22 @@ function FBtn({ label, active, color, onClick }) {
 /* ===== Expandable Row ===== */
 function ERow({ row, cfg, isOpen, toggle }) {
   const [h, setH] = useState(false);
+  const [emails, setEmails] = useState(null);
+  const [loadingEmails, setLoadingEmails] = useState(false);
+
+  // Lazy fetch emails when row is first expanded
+  useEffect(() => {
+    if (isOpen && emails === null && !loadingEmails) {
+      setLoadingEmails(true);
+      getApplicationEmails(row.id)
+        .then((data) => setEmails(data))
+        .catch(() => setEmails([]))
+        .finally(() => setLoadingEmails(false));
+    }
+  }, [isOpen, emails, loadingEmails, row.id]);
+
+  const hasEmails = emails && emails.length > 0;
+
   return (
     <div style={{ borderBottom: "1px solid rgba(245,245,244,0.8)" }}>
       <div
@@ -63,9 +80,11 @@ function ERow({ row, cfg, isOpen, toggle }) {
           ▾
         </span>
       </div>
+
+      {/* Expanded detail */}
       <div
         style={{
-          maxHeight: isOpen ? 130 : 0,
+          maxHeight: isOpen ? 300 : 0,
           overflow: "hidden",
           opacity: isOpen ? 1 : 0,
           transition: "max-height 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.3s, padding 0.3s",
@@ -74,7 +93,38 @@ function ERow({ row, cfg, isOpen, toggle }) {
         }}
       >
         <div style={{ background: "rgba(245,245,244,0.7)", borderRadius: 12, padding: "14px 18px", fontSize: 13, color: "#57534e", lineHeight: 1.7 }}>
-          {row.summary || "No additional details."}
+          {/* Summary */}
+          <div style={{ marginBottom: hasEmails ? 12 : 0 }}>
+            {row.summary || "No additional details."}
+          </div>
+
+          {/* Email subjects */}
+          {loadingEmails && (
+            <div style={{ fontSize: 12, color: "#a8a29e" }}>Loading emails...</div>
+          )}
+          {hasEmails && (
+            <div style={{ borderTop: "1px solid rgba(214,211,209,0.4)", paddingTop: 10 }}>
+              <div style={{ fontSize: 11, color: "#a8a29e", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>
+                Related Emails ({emails.length})
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {emails.map((e, i) => (
+                  <div key={e.gmail_id || i} style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 12 }}>
+                    <span style={{ color: "#a8a29e", flexShrink: 0 }}>{e.date?.slice(0, 10)}</span>
+                    <span style={{ color: "#44403c" }}>{e.subject || "(no subject)"}</span>
+                    {e.email_type && (
+                      <span style={{
+                        fontSize: 10, color: "#a8a29e", background: "rgba(245,245,244,0.9)",
+                        padding: "1px 6px", borderRadius: 4, flexShrink: 0,
+                      }}>
+                        {e.email_type}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
