@@ -9,39 +9,21 @@ import json
 
 import requests
 
+from config import (
+    EMAIL_TYPE_TO_STATUS,
+    JOB_EMAIL_TYPES,
+    LLM_NUM_PREDICT_ANALYZE,
+    LLM_TEMPERATURE,
+    LLM_TIMEOUT_ANALYZE,
+    OLLAMA_GENERATE_URL,
+    OLLAMA_MODEL,
+)
 from db.database import (
     get_unanalyzed_emails,
     insert_analysis,
     upsert_application,
 )
 from llm.prompts import SYSTEM_PROMPT, build_user_prompt
-
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "qwen3:8b"
-
-# Email types that represent actual job applications
-JOB_TYPES = {
-    "application_confirm",
-    "rejection",
-    "interview_invite",
-    "offer",
-    "action_needed",
-    "linkedin_applied",
-    "linkedin_rejected",
-    "recruiter_outreach",
-}
-
-# Map email_type to application status
-TYPE_TO_STATUS = {
-    "application_confirm": "applied",
-    "rejection": "rejected",
-    "interview_invite": "interview",
-    "offer": "offer",
-    "action_needed": "action_needed",
-    "linkedin_applied": "applied",
-    "linkedin_rejected": "rejected",
-    "recruiter_outreach": "applied",
-}
 
 
 def call_ollama(email: dict) -> dict | None:
@@ -53,18 +35,18 @@ def call_ollama(email: dict) -> dict | None:
 
     try:
         resp = requests.post(
-            OLLAMA_URL,
+            OLLAMA_GENERATE_URL,
             json={
-                "model": MODEL,
+                "model": OLLAMA_MODEL,
                 "prompt": user_prompt,
                 "system": SYSTEM_PROMPT,
                 "stream": False,
                 "options": {
-                    "temperature": 0.1,  # low temp for consistent classification
-                    "num_predict": 512,
+                    "temperature": LLM_TEMPERATURE,
+                    "num_predict": LLM_NUM_PREDICT_ANALYZE,
                 },
             },
-            timeout=120,
+            timeout=LLM_TIMEOUT_ANALYZE,
         )
         resp.raise_for_status()
         raw = resp.json().get("response", "")
@@ -72,7 +54,7 @@ def call_ollama(email: dict) -> dict | None:
         # Clean up: strip markdown fences if present
         raw = raw.strip()
         if raw.startswith("```"):
-            raw = raw.split("\n", 1)[-1]  # remove first line
+            raw = raw.split("\n", 1)[-1]
         if raw.endswith("```"):
             raw = raw.rsplit("```", 1)[0]
         raw = raw.strip()
@@ -110,7 +92,6 @@ def analyze_email(email: dict) -> dict | None:
     if not result:
         return None
 
-    # Store analysis
     analysis = {
         "gmail_id": email["gmail_id"],
         "email_type": result.get("email_type", "other"),
@@ -121,14 +102,13 @@ def analyze_email(email: dict) -> dict | None:
         "deadline": result.get("deadline"),
         "summary": result.get("summary"),
         "confidence": result.get("confidence"),
-        "model_used": MODEL,
+        "model_used": OLLAMA_MODEL,
     }
     insert_analysis(analysis)
 
-    # If it's a job-related email, upsert the application
     email_type = result.get("email_type", "other")
-    if email_type in JOB_TYPES and result.get("company"):
-        status = TYPE_TO_STATUS.get(email_type, "applied")
+    if email_type in JOB_EMAIL_TYPES and result.get("company"):
+        status = EMAIL_TYPE_TO_STATUS.get(email_type, "applied")
         upsert_application(
             {
                 "company": result["company"],
@@ -153,7 +133,7 @@ def analyze_all():
         print("No unanalyzed emails found.")
         return
 
-    print(f"Analyzing {total} emails with {MODEL}...\n")
+    print(f"Analyzing {total} emails with {OLLAMA_MODEL}...\n")
 
     success = 0
     fail = 0
