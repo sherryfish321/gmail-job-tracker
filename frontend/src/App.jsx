@@ -64,6 +64,12 @@ export default function App() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Auto-refresh: re-fetch data every 60 seconds to pick up auto-sync results
+  useEffect(() => {
+    const interval = setInterval(fetchData, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
   const handleSync = async () => {
     setSyncing(true);
     setSyncResult(null);
