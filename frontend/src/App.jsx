@@ -3,7 +3,7 @@ import { getApplications, syncEmails, toggleActionDone } from "./api/client";
 import { T, GC } from "./components/ui";
 import StatsCards from "./components/StatsCards";
 import SankeyFunnel from "./components/SankeyFunnel";
-import WeeklyTrend from "./components/WeeklyTrend";
+import Trend from "./components/Trend";
 import ActionItems from "./components/ActionItems";
 import { ByRole } from "./components/ActionItems";
 import ApplicationTable from "./components/ApplicationTable";
@@ -326,7 +326,7 @@ export default function App() {
         <SankeyFunnel data={filtered} />
 
         {/* Weekly Trend */}
-        <WeeklyTrend data={filtered} />
+        <Trend data={filtered} />
 
         {/* Action Items + By Role */}
         <div className="two-col-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 22 }}>
