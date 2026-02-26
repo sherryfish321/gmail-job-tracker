@@ -74,9 +74,8 @@ EMAIL_TYPE_TO_STATUS = {
 # Ollama LLM
 # ============================================================
 OLLAMA_BASE_URL = os.getenv("JT_OLLAMA_URL", "http://localhost:11434")
-# OLLAMA_MODEL = os.getenv("JT_OLLAMA_MODEL", "qwen3:8b")
-OLLAMA_MODEL = os.getenv("JT_OLLAMA_MODEL", "qwen2.5-coder:7b")
-
+OLLAMA_MODEL_ANALYZE = os.getenv("JT_OLLAMA_MODEL_ANALYZE", "qwen2.5-coder:7b")
+OLLAMA_MODEL_CHAT = os.getenv("JT_OLLAMA_MODEL_CHAT", "qwen3:8b")
 
 # Derived endpoints (don't override these directly)
 OLLAMA_GENERATE_URL = f"{OLLAMA_BASE_URL}/api/generate"  # for analyzer

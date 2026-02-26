@@ -23,7 +23,7 @@ from config import (
     LLM_NUM_PREDICT_CHAT,
     LLM_TIMEOUT_CHAT,
     OLLAMA_CHAT_URL,
-    OLLAMA_MODEL,
+    OLLAMA_MODEL_CHAT,
 )
 from db.database import (
     get_all_applications,
@@ -158,7 +158,7 @@ def api_chat(req: ChatRequest):
         resp = httpx.post(
             OLLAMA_CHAT_URL,
             json={
-                "model": OLLAMA_MODEL,
+                "model": OLLAMA_MODEL_CHAT,
                 "messages": [
                     {"role": "system", "content": context},
                     {"role": "user", "content": req.message},

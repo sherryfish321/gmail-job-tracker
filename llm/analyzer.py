@@ -16,7 +16,7 @@ from config import (
     LLM_TEMPERATURE,
     LLM_TIMEOUT_ANALYZE,
     OLLAMA_GENERATE_URL,
-    OLLAMA_MODEL,
+    OLLAMA_MODEL_ANALYZE,
 )
 from db.database import (
     get_unanalyzed_emails,
@@ -37,7 +37,7 @@ def call_ollama(email: dict) -> dict | None:
         resp = requests.post(
             OLLAMA_GENERATE_URL,
             json={
-                "model": OLLAMA_MODEL,
+                "model": OLLAMA_MODEL_ANALYZE,
                 "prompt": user_prompt,
                 "system": SYSTEM_PROMPT,
                 "stream": False,
@@ -102,7 +102,7 @@ def analyze_email(email: dict) -> dict | None:
         "deadline": result.get("deadline"),
         "summary": result.get("summary"),
         "confidence": result.get("confidence"),
-        "model_used": OLLAMA_MODEL,
+        "model_used": OLLAMA_MODEL_ANALYZE,
     }
     insert_analysis(analysis)
 
@@ -133,7 +133,7 @@ def analyze_all():
         print("No unanalyzed emails found.")
         return
 
-    print(f"Analyzing {total} emails with {OLLAMA_MODEL}...\n")
+    print(f"Analyzing {total} emails with {OLLAMA_MODEL_ANALYZE}...\n")
 
     success = 0
     fail = 0
