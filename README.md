@@ -6,6 +6,12 @@
 
 A full-stack application that automatically fetches job-related emails from Gmail, classifies them using local LLMs (Ollama), and presents insights through an interactive React dashboard.
 
+<p align="center">
+  <img src="docs/screenshot-1.png" alt="Gmail JobTracker — Dashboard Overview" width="600">
+  <br><br>
+  <img src="docs/screenshot-2.png" alt="Gmail JobTracker — Application Table" width="600">
+</p>
+
 ---
 
 ## Table of Contents
