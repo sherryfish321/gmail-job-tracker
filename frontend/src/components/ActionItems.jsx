@@ -135,34 +135,35 @@ export default function ActionItems({ data, onToggle }) {
         )}
       </div>
 
-      {/* Pending */}
-      {pending.length === 0 && done.length === 0 && (
-        <div style={{ color: "#d6d3d1", fontSize: 14, textAlign: "center", padding: 24 }}>All clear</div>
-      )}
-      {pending.length === 0 && done.length > 0 && (
-        <div style={{ color: "#22c55e", fontSize: 13, textAlign: "center", padding: 16, fontWeight: 600 }}>All done!</div>
-      )}
-      {pending.map((it) => (
-        <ActCard key={it.id} it={it} done={false} onToggle={onToggle} />
-      ))}
+      <div style={{ height: 320, overflowY: "auto", paddingRight: 4, display: "flex", flexDirection: "column" }}>
+        {pending.length === 0 && done.length === 0 && (
+          <div style={{ color: "#d6d3d1", fontSize: 14, textAlign: "center", padding: 24, margin: "auto" }}>All clear</div>
+        )}
+        {pending.length === 0 && done.length > 0 && (
+          <div style={{ color: "#22c55e", fontSize: 13, textAlign: "center", padding: 16, fontWeight: 600, margin: "auto" }}>All done!</div>
+        )}
+        
+        {pending.map((it) => (
+          <ActCard key={it.id} it={it} done={false} onToggle={onToggle} />
+        ))}
 
-      {/* Completed section */}
-      {done.length > 0 && (
-        <div style={{ marginTop: pending.length > 0 ? 16 : 0 }}>
-          <div style={{
-            fontSize: 11, color: "#a8a29e", fontWeight: 600, marginBottom: 8,
-            display: "flex", alignItems: "center", gap: 6,
-          }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M5 13l4 4L19 7" />
-            </svg>
-            Completed ({done.length})
+        {done.length > 0 && (
+          <div style={{ marginTop: pending.length > 0 ? 16 : 0 }}>
+            <div style={{
+              fontSize: 11, color: "#a8a29e", fontWeight: 600, marginBottom: 8,
+              display: "flex", alignItems: "center", gap: 6,
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+              Completed ({done.length})
+            </div>
+            {done.map((it) => (
+              <ActCard key={it.id} it={it} done={true} onToggle={onToggle} />
+            ))}
           </div>
-          {done.map((it) => (
-            <ActCard key={it.id} it={it} done={true} onToggle={onToggle} />
-          ))}
-        </div>
-      )}
+        )}
+      </div>
     </GC>
   );
 }
@@ -182,9 +183,10 @@ export function ByRole({ data }) {
         <div style={{ fontSize: 10, color: T.primary, textTransform: "uppercase", letterSpacing: 3, fontWeight: 700 }}>Breakdown</div>
         <div style={{ fontSize: 16, fontWeight: 700, color: "#1c1917", marginTop: 4 }}>By Role</div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, height: 320, overflowY: "auto", paddingRight: 4 }}>
         {roleData.length === 0 ? (
-          <div style={{ color: "#d6d3d1", fontSize: 14, textAlign: "center", padding: 24 }}>No data</div>
+          <div style={{ color: "#d6d3d1", fontSize: 14, textAlign: "center", padding: 24, margin: "auto" }}>No data</div>
         ) : (
           roleData.map(([role, ct], i) => <RBar key={role} role={role} ct={ct} total={total} i={i} />)
         )}
