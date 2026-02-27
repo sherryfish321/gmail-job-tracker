@@ -44,7 +44,7 @@ export default function App() {
       const raw = await getApplications();
       const apps = raw.map((r) => ({
         ...r,
-        date: r.first_seen?.slice(0, 10) || "",
+        date: r.first_seen || "",
         status: r.current_status || "applied",
         action: r.action_item || null,
         action_done: r.action_done || 0,

@@ -76,7 +76,7 @@ function ERow({ row, cfg, isOpen, toggle, onToggle }) {
           transition: "background 0.15s",
         }}
       >
-        <span style={{ fontSize: 12, color: "#a8a29e" }}>{row.date}</span>
+        <span style={{ fontSize: 12, color: "#a8a29e" }}>{row.date?.slice(0, 10)}</span>
         <span style={{ color: "#1c1917", fontWeight: 700, fontSize: 14 }}>{row.company}</span>
         <span style={{ color: "#78716c", fontSize: 13 }}>{row.role || "—"}</span>
         <span>
