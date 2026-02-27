@@ -1,6 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { GC, T, statusConfig, STATUS_ORDER } from "./ui";
 import { getApplicationEmails } from "../api/client";
+
+/* ===== Sort Config ===== */
+const statusRank = (s) => {
+  const i = STATUS_ORDER.indexOf(s);
+  return i === -1 ? 999 : i;
+};
+
+const SORT_COLS = {
+  date:    { label: "Date",        w: "90px",  fn: (a, b) => (a.date ?? "").localeCompare(b.date ?? "") },
+  company: { label: "Company",     w: "1.2fr", fn: (a, b) => (a.company ?? "").localeCompare(b.company ?? "") },
+  role:    { label: "Role",        w: "130px", fn: (a, b) => (a.role ?? "").localeCompare(b.role ?? "") },
+  status:  { label: "Status",      w: "100px", fn: (a, b) => statusRank(a.status) - statusRank(b.status) },
+};
+
+const GRID_COLS = "90px 1.2fr 130px 100px 1fr 36px";
+
+const SortArrow = ({ active, dir }) => (
+  <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.35 }}>
+    {active ? (dir === "asc" ? "▲" : "▼") : "⇅"}
+  </span>
+);
 
 /* ===== Filter Button ===== */
 function FBtn({ label, active, color, onClick }) {
@@ -30,7 +51,6 @@ function ERow({ row, cfg, isOpen, toggle }) {
   const [emails, setEmails] = useState(null);
   const [loadingEmails, setLoadingEmails] = useState(false);
 
-  // Lazy fetch emails when row is first expanded
   useEffect(() => {
     if (isOpen && emails === null && !loadingEmails) {
       setLoadingEmails(true);
@@ -50,11 +70,8 @@ function ERow({ row, cfg, isOpen, toggle }) {
         onMouseEnter={() => setH(true)}
         onMouseLeave={() => setH(false)}
         style={{
-          display: "grid",
-          gridTemplateColumns: "90px 1.2fr 130px 100px 1fr 36px",
-          alignItems: "center",
-          padding: "14px 20px",
-          cursor: "pointer",
+          display: "grid", gridTemplateColumns: GRID_COLS, alignItems: "center",
+          padding: "14px 20px", cursor: "pointer",
           background: isOpen || h ? "rgba(255,251,245,0.9)" : "rgba(255,255,255,0.6)",
           transition: "background 0.15s",
         }}
@@ -63,13 +80,11 @@ function ERow({ row, cfg, isOpen, toggle }) {
         <span style={{ color: "#1c1917", fontWeight: 700, fontSize: 14 }}>{row.company}</span>
         <span style={{ color: "#78716c", fontSize: 13 }}>{row.role || "—"}</span>
         <span>
-          <span
-            style={{
-              background: cfg.bg, color: cfg.color,
-              padding: "3px 12px", borderRadius: 99, fontSize: 11, fontWeight: 600,
-              border: `1px solid ${cfg.border}`,
-            }}
-          >
+          <span style={{
+            background: cfg.bg, color: cfg.color,
+            padding: "3px 12px", borderRadius: 99, fontSize: 11, fontWeight: 600,
+            border: `1px solid ${cfg.border}`,
+          }}>
             {cfg.label}
           </span>
         </span>
@@ -82,23 +97,17 @@ function ERow({ row, cfg, isOpen, toggle }) {
       </div>
 
       {/* Expanded detail */}
-      <div
-        style={{
-          maxHeight: isOpen ? 300 : 0,
-          overflow: "hidden",
-          opacity: isOpen ? 1 : 0,
-          transition: "max-height 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.3s, padding 0.3s",
-          padding: isOpen ? "0 20px 16px" : "0 20px",
-          background: "rgba(255,251,245,0.9)",
-        }}
-      >
+      <div style={{
+        maxHeight: isOpen ? 300 : 0, overflow: "hidden",
+        opacity: isOpen ? 1 : 0,
+        transition: "max-height 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.3s, padding 0.3s",
+        padding: isOpen ? "0 20px 16px" : "0 20px",
+        background: "rgba(255,251,245,0.9)",
+      }}>
         <div style={{ background: "rgba(245,245,244,0.7)", borderRadius: 12, padding: "14px 18px", fontSize: 13, color: "#57534e", lineHeight: 1.7 }}>
-          {/* Summary */}
           <div style={{ marginBottom: hasEmails ? 12 : 0 }}>
             {row.summary || "No additional details."}
           </div>
-
-          {/* Email subjects */}
           {loadingEmails && (
             <div style={{ fontSize: 12, color: "#a8a29e" }}>Loading emails...</div>
           )}
@@ -113,10 +122,7 @@ function ERow({ row, cfg, isOpen, toggle }) {
                     <span style={{ color: "#a8a29e", flexShrink: 0 }}>{e.date?.slice(0, 10)}</span>
                     <span style={{ color: "#44403c" }}>{e.subject || "(no subject)"}</span>
                     {e.email_type && (
-                      <span style={{
-                        fontSize: 10, color: "#a8a29e", background: "rgba(245,245,244,0.9)",
-                        padding: "1px 6px", borderRadius: 4, flexShrink: 0,
-                      }}>
+                      <span style={{ fontSize: 10, color: "#a8a29e", background: "rgba(245,245,244,0.9)", padding: "1px 6px", borderRadius: 4, flexShrink: 0 }}>
                         {e.email_type}
                       </span>
                     )}
@@ -134,16 +140,42 @@ function ERow({ row, cfg, isOpen, toggle }) {
 /* ===== Main Table ===== */
 export default function ApplicationTable({ data, total, statusFilter, onStatusFilter }) {
   const [openRows, setOpenRows] = useState({});
+  const [sortCol, setSortCol] = useState("date");
+  const [sortDir, setSortDir] = useState("desc");
+  const [query, setQuery] = useState("");
+
+  /* sort toggle */
+  const handleSort = (col) => {
+    if (col === sortCol) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortCol(col); setSortDir("asc"); }
+  };
+
+  /* filter + sort */
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = data;
+    if (q) {
+      list = list.filter(
+        (r) => (r.company ?? "").toLowerCase().includes(q) || (r.role ?? "").toLowerCase().includes(q)
+      );
+    }
+    const cmp = SORT_COLS[sortCol]?.fn ?? SORT_COLS.date.fn;
+    const sorted = [...list].sort(cmp);
+    return sortDir === "desc" ? sorted.reverse() : sorted;
+  }, [data, query, sortCol, sortDir]);
 
   return (
     <GC style={{ padding: "28px 28px 20px" }}>
+      {/* Title */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 10, color: T.primary, textTransform: "uppercase", letterSpacing: 3, fontWeight: 700 }}>Details</div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#1c1917", marginTop: 4 }}>All Applications</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#1c1917", marginTop: 4 }}>
+          All Applications{query && ` — ${rows.length} match${rows.length !== 1 ? "es" : ""}`}
+        </div>
       </div>
 
-      {/* Status filter pills */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+      {/* Status filter pills + Search */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         {["all", ...STATUS_ORDER].map((s) => (
           <FBtn
             key={s}
@@ -153,26 +185,56 @@ export default function ApplicationTable({ data, total, statusFilter, onStatusFi
             onClick={() => onStatusFilter(s)}
           />
         ))}
+        <div style={{ flex: 1 }} />
+        <input
+          type="text"
+          placeholder="Search company / role…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          style={{
+            padding: "7px 14px", borderRadius: 99, fontSize: 12, width: 260,
+            border: `2px solid ${T.primary}`,
+            background: "rgba(255,255,255,0.7)",
+            outline: "none", transition: "box-shadow 0.2s",
+            color: "#1c1917",
+          }}
+          onFocus={(e) => { e.target.style.boxShadow = `0 0 0 3px ${T.primary}22`; }}
+          onBlur={(e) => { e.target.style.boxShadow = "none"; }}
+        />
       </div>
 
       {/* Table */}
       <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(245,245,244,0.8)" }}>
-        {/* Header */}
-        <div style={{ display: "grid", gridTemplateColumns: "90px 1.2fr 130px 100px 1fr 36px", padding: "12px 20px", background: "rgba(250,250,249,0.8)" }}>
-          {["Date", "Company", "Role", "Status", "Action Item", ""].map((h) => (
-            <span key={h} style={{ fontSize: 11, color: "#a8a29e", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8 }}>
-              {h}
+        {/* Sortable Header */}
+        <div style={{ display: "grid", gridTemplateColumns: GRID_COLS, padding: "12px 20px", background: "rgba(250,250,249,0.8)" }}>
+          {Object.entries(SORT_COLS).map(([key, { label }]) => (
+            <span
+              key={key}
+              onClick={() => handleSort(key)}
+              style={{
+                fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8,
+                cursor: "pointer", userSelect: "none",
+                color: sortCol === key ? T.primary : "#a8a29e",
+                transition: "color 0.15s",
+              }}
+            >
+              {label}<SortArrow active={sortCol === key} dir={sortDir} />
             </span>
           ))}
+          {/* Action Item + arrow columns — not sortable */}
+          <span style={{ fontSize: 11, color: "#a8a29e", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8 }}>
+            Action Item
+          </span>
+          <span />
         </div>
 
         {/* Rows */}
-        {data.length === 0 ? (
+        {rows.length === 0 ? (
           <div style={{ padding: 40, textAlign: "center", color: "#d6d3d1", background: "rgba(255,255,255,0.6)" }}>
-            No results
+            {query ? "No matching applications" : "No results"}
           </div>
         ) : (
-          data.map((row) => {
+          rows.map((row) => {
             const cfg = statusConfig[row.status] || { label: row.status || "—", color: "#9ca3af", bg: "#f9fafb", border: "#e5e7eb" };
             return (
               <ERow
