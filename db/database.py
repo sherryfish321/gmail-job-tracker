@@ -154,6 +154,21 @@ def toggle_action_done(app_id: int, db_path=DB_PATH) -> dict | None:
     return dict(row) if row else None
 
 
+def update_application_status(app_id: int, status: str, db_path=DB_PATH) -> dict | None:
+    """Update the current_status of an application. Returns updated app or None."""
+    conn = get_conn(db_path)
+    conn.execute(
+        "UPDATE applications SET current_status = ?, last_updated = ? WHERE id = ?",
+        (status, datetime.now().isoformat(), app_id),
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT id, current_status FROM applications WHERE id = ?", (app_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
 # ============================================================
 # Emails CRUD
 # ============================================================

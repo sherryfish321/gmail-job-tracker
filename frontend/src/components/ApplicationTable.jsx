@@ -46,10 +46,12 @@ function FBtn({ label, active, color, onClick }) {
 }
 
 /* ===== Expandable Row ===== */
-function ERow({ row, cfg, isOpen, toggle, onToggle }) {
+function ERow({ row, cfg, isOpen, toggle, onToggle, onStatusUpdate }) {
   const [h, setH] = useState(false);
   const [emails, setEmails] = useState(null);
   const [loadingEmails, setLoadingEmails] = useState(false);
+
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
 
   useEffect(() => {
     if (isOpen && emails === null && !loadingEmails) {
@@ -79,14 +81,72 @@ function ERow({ row, cfg, isOpen, toggle, onToggle }) {
         <span style={{ fontSize: 12, color: "#a8a29e" }}>{row.date?.slice(0, 10)}</span>
         <span style={{ color: "#1c1917", fontWeight: 700, fontSize: 14 }}>{row.company}</span>
         <span style={{ color: "#78716c", fontSize: 13 }}>{row.role || "—"}</span>
-        <span>
-          <span style={{
-            background: cfg.bg, color: cfg.color,
-            padding: "3px 12px", borderRadius: 99, fontSize: 11, fontWeight: 600,
-            border: `1px solid ${cfg.border}`,
-          }}>
-            {cfg.label}
+        <span style={{ position: "relative" }}>
+          <span
+            onClick={(e) => { e.stopPropagation(); setShowStatusMenu((v) => !v); }}
+            style={{
+              background: cfg.bg, color: cfg.color,
+              padding: "3px 12px", borderRadius: 99, fontSize: 11, fontWeight: 600,
+              border: `1px solid ${cfg.border}`,
+              cursor: "pointer", userSelect: "none",
+              transition: "all 0.15s",
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)"; }}
+            onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; }}
+          >
+            {cfg.label} ▾
           </span>
+          {showStatusMenu && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 50,
+                background: "rgba(255,255,255,0.97)", backdropFilter: "blur(12px)",
+                borderRadius: 12, padding: 6, minWidth: 150,
+                border: "1.5px solid rgba(214,211,209,0.5)",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
+              }}
+            >
+              {STATUS_ORDER.map((s) => {
+                const sc = statusConfig[s];
+                if (!sc) return null;
+                const isActive = row.status === s;
+                return (
+                  <div
+                    key={s}
+                    onClick={() => {
+                      if (!isActive && onStatusUpdate) onStatusUpdate(row.id, s);
+                      setShowStatusMenu(false);
+                    }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "7px 12px", borderRadius: 8, cursor: isActive ? "default" : "pointer",
+                      background: isActive ? "rgba(245,245,244,0.8)" : "transparent",
+                      transition: "background 0.15s",
+                    }}
+                    onMouseOver={(e) => { if (!isActive) e.currentTarget.style.background = "rgba(245,245,244,0.6)"; }}
+                    onMouseOut={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span style={{
+                      width: 8, height: 8, borderRadius: 99,
+                      background: sc.color, flexShrink: 0,
+                    }} />
+                    <span style={{
+                      fontSize: 12, fontWeight: isActive ? 700 : 500,
+                      color: isActive ? sc.color : "#44403c",
+                    }}>
+                      {sc.label}
+                    </span>
+                    {isActive && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={sc.color} strokeWidth="3" strokeLinecap="round" style={{ marginLeft: "auto" }}>
+                        <path d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {row.action && onToggle && (
@@ -167,7 +227,7 @@ function ERow({ row, cfg, isOpen, toggle, onToggle }) {
 }
 
 /* ===== Main Table ===== */
-export default function ApplicationTable({ data, total, statusFilter, onStatusFilter, onToggle }) {
+export default function ApplicationTable({ data, total, statusFilter, onStatusFilter, onToggle, onStatusUpdate }) {
   const [openRows, setOpenRows] = useState({});
   const [sortCol, setSortCol] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
@@ -303,6 +363,7 @@ export default function ApplicationTable({ data, total, statusFilter, onStatusFi
                 isOpen={!!openRows[row.id]}
                 toggle={() => setOpenRows((p) => ({ ...p, [row.id]: !p[row.id] }))}
                 onToggle={onToggle}
+                onStatusUpdate={onStatusUpdate}
               />
             );
           })

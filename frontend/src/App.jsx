@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { getApplications, syncEmails, toggleActionDone } from "./api/client";
+import { getApplications, syncEmails, toggleActionDone, updateApplicationStatus } from "./api/client";
 import { T, GC } from "./components/ui";
 import StatsCards from "./components/StatsCards";
 import SankeyFunnel from "./components/SankeyFunnel";
@@ -104,6 +104,15 @@ export default function App() {
       await fetchData();
     } catch (err) {
       console.error("Toggle error:", err);
+    }
+  };
+
+  const handleUpdateStatus = async (appId, status) => {
+    try {
+      await updateApplicationStatus(appId, status);
+      await fetchData();
+    } catch (err) {
+      console.error("Status update error:", err);
     }
   };
 
@@ -347,6 +356,7 @@ export default function App() {
           statusFilter={statusFilter}
           onStatusFilter={setSf}
           onToggle={handleToggleAction}
+          onStatusUpdate={handleUpdateStatus}
         />
       </div>
 

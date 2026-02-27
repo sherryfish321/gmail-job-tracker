@@ -40,6 +40,13 @@ export const getApplicationEmails = (appId) => request(`/api/applications/${appI
 export const toggleActionDone = (appId) =>
   request(`/api/applications/${appId}/action-done`, { method: "PATCH" });
 
+// Update application status
+export const updateApplicationStatus = (appId, status) =>
+  request(`/api/applications/${appId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+
 // AI Insight — chat with Ollama via backend
 export const chatAI = (message) =>
   request("/api/chat", {

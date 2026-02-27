@@ -35,6 +35,7 @@ from db.database import (
     get_weekly_trend,
     init_db,
     toggle_action_done,
+    update_application_status,
 )
 from gmail.fetcher import fetch_emails
 from llm.analyzer import analyze_all
@@ -233,6 +234,22 @@ def api_analyze():
 def api_toggle_action_done(app_id: int):
     """Toggle action_done status for an application."""
     result = toggle_action_done(app_id)
+    if not result:
+        return {"error": "Application not found"}, 404
+    return result
+
+
+class StatusUpdateRequest(BaseModel):
+    status: str
+
+
+@app.patch("/api/applications/{app_id}/status")
+def api_update_status(app_id: int, req: StatusUpdateRequest):
+    """Update application status manually."""
+    valid = {"applied", "rejected", "interview", "offer", "action_needed"}
+    if req.status not in valid:
+        return {"error": f"Invalid status. Must be one of: {valid}"}, 400
+    result = update_application_status(app_id, req.status)
     if not result:
         return {"error": "Application not found"}, 404
     return result
