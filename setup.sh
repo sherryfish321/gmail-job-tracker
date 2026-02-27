@@ -76,8 +76,17 @@ fi
 # Check Ollama
 if command -v ollama &> /dev/null; then
     echo "       ✔ ollama command found"
+
+    # Check classification model
+    if ollama list 2>/dev/null | grep -q "qwen2.5-coder:7b"; then
+        echo "       ✔ qwen2.5-coder:7b model available (classification)"
+    else
+        echo "       ⚠ qwen2.5-coder:7b not found. Run: ollama pull qwen2.5-coder:7b"
+    fi
+
+    # Check chat model
     if ollama list 2>/dev/null | grep -q "qwen3:8b"; then
-        echo "       ✔ qwen3:8b model available"
+        echo "       ✔ qwen3:8b model available (AI chat)"
     else
         echo "       ⚠ qwen3:8b not found. Run: ollama pull qwen3:8b"
     fi
