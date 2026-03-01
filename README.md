@@ -110,8 +110,8 @@ gmail-jobtracker/
 ### Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/gmail-jobtracker.git
-cd gmail-jobtracker
+git clone https://github.com/johnson00111/gmail_job_app_tracker.git
+cd gmail_job_app_tracker
 
 # Place your Google OAuth credentials file in the project root
 cp /path/to/credentials.json .
