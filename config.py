@@ -30,6 +30,7 @@ GMAIL_OAUTH_PORT = 8080
 # Search keywords (full-body search, no subject: prefix for high recall)
 # LLM handles false-positive filtering downstream
 GMAIL_SEARCH_KEYWORDS = (
+    '(in:Inbox OR label:Job) '
     "{(application OR applied OR interview OR offer OR reject OR thank "
     'OR "submission" OR "received your" OR "candidacy" OR "next steps" '
     'OR "confirmation" OR "coding challenge" OR "assessment" '
