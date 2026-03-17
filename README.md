@@ -238,6 +238,10 @@ kill -9 $(lsof -ti :5173) 2>/dev/null
 - Ollama is optional for UI startup, but required for classification and chat.
 - The app stores local data in `tracker.db`.
 
+## Author
+
+Tsung-Han Jao
+
 ## Roadmap Ideas
 
 - Better deduplication across email threads
